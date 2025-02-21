@@ -1,5 +1,6 @@
 import random
 from abc import ABC, abstractmethod
+from math import floor
 
 # ==============================
 # Class Connection
@@ -8,7 +9,7 @@ class Connection:
     def __init__(self, weight, neuron):
         self.weight = weight
         self.next_neuron = neuron
-    
+
 
 # ==============================
 # Class Neuron
@@ -17,12 +18,12 @@ class Neuron(ABC):
     def __init__(self):
         self.connections = []
 
-    def connect(self, weight: float, neuron):
+    def connect(self, weight, neuron):
         self.connections.append(Connection(weight, neuron))
 
-    def initialize(self, input: float):
+    def initialize(self, input):
         self.input = input
-    
+
     def propagate(self):
         for connection in self.connections:
             connection.next_neuron.input += self.output * connection.weight
@@ -37,22 +38,22 @@ class Layer:
 
     def add_neuron(self, neuron):
         self.neurons.append(neuron)
-    
+
     def add_neurons(self, neurons):
         self.neurons.extend(neurons)
 
-    def connect_neuron(self, neuron_conn: Neuron, min_w: float, max_w: float):
+    def connect_neuron(self, neuron_conn, min_w, max_w):
         for neuron in self.neurons:
             neuron.connect(min_w, neuron_conn)
-            
-    def connect_layer(self, layer, min_w: float, max_w: float):
+
+    def connect_layer(self, layer, min_w, max_w):
         for next_neuron in layer.neurons:
             self.connect_neuron(next_neuron, min_w, max_w)
-    
-    def initialize(self, value: int):
+
+    def initialize(self, value):
         for neuron in self.neurons:
             neuron.initialize(value)
-    
+
     def fire(self):
         for neuron in self.neurons:
             neuron.fire()
@@ -69,16 +70,16 @@ class Network:
     def __init__(self):
         self.layers = []
 
-    def add_layer(self, layer): 
+    def add_layer(self, layer):
         self.layers.append(layer)
-    
+
     def add_layers(self, layers):
         self.layers.extend(layers)
-    
-    def initialize(self, value:int):
+
+    def initialize(self, value):
         for layer in self.layers:
             layer.initialize(value)
-    
+
     def fire(self):
         for layer in self.layers:
             layer.fire()
@@ -86,26 +87,119 @@ class Network:
     def propagate(self):
         for layer in self.layers:
             layer.propagate()
-    
+
 
 class McCullochPitts(Neuron):
     def __init__(self, threshold):
         super().__init__()
         self.threshold = threshold
-        
+
     def fire(self):
         if self.input >= self.threshold:
             self.output = 1
-        else: self.output = 0
+        else:
+            self.output = 0
 
 
 class Direct(Neuron):
     def __init__(self):
         super().__init__()
-        
+
     def fire(self):
         self.output = self.input
 
+
+# Ej3
+# Definiremos pues las tres funciones a implementar
+def check_first_line_format(line):
+    line_array = line.strip().split()
+    if len(line_array) != 2:
+        raise Exception("Error de formato: atributos (M) clases (N)")
+    if not line_array[0].isdigit() or not line_array[1].isdigit():
+        raise Exception("Error de formato en primer linea: int int)")
+    else:
+        attributes = int(line_array[0])
+        classes = int(line_array[1])
+    return attributes, classes
+
+
+def file_transformation(lines, attributes, classes, input_array, output_array):
+    for line in lines:
+        input_array_line = [int(float(cell)) if float(cell).is_integer() else float(cell) for cell in
+                            line.strip().split("  ")]
+        output_array_line = []
+        i = 0
+        if len(input_array_line) < attributes or len(
+                input_array_line) < classes or len(input_array_line) < (attributes + classes):
+            raise Exception(
+                "Error en el formato, no puede haber mas entradas ni salidas que numeros insertados")
+        print("Inicio de removida input_array_line = {}".format(input_array_line))
+        for i in range(classes):
+            output_array_line.insert(0, input_array_line.pop())
+            print("input_array_line = {}".format(input_array_line))
+            print("Inicio de removida output_array_line = {}".format(output_array_line))
+        input_array.append(input_array_line)
+        output_array.append(output_array_line)
+
+
+def read1(data_file: str, percentage: float):
+    with open(data_file, 'r') as f:
+        try:
+            input_array = []
+            output_array = []
+            lines = f.readlines()
+            line_number = len(lines) - 1
+            reduced_line_number = floor(percentage * line_number)
+            if reduced_line_number > line_number:
+                raise Exception("Percentage must be between 0 and 1")
+            attributes, classes = check_first_line_format(lines[0])
+
+            random_lines = random.sample(lines[1:], reduced_line_number)
+
+            file_transformation(random_lines, attributes, classes, input_array, output_array)
+        except Exception as e:
+            print(e)
+    f.close()
+    return input_array, output_array
+
+
+def read2(data_file: str):
+    with open(data_file, 'r') as f:
+        try:
+            lines = f.readlines()
+            attributes, classes = check_first_line_format(lines[0])
+            input_array = []
+            output_array = []
+            file_transformation(lines[1:], attributes, classes, input_array, output_array)
+        except Exception as e:
+            print(e)
+    f.close()
+    return input_array, output_array
+
+
+def read3(learning_file, testing_file):
+    with (
+        open(learning_file, 'r') as f,
+        open(testing_file, 'r') as t
+    ):
+        try:
+            learning_lines = f.readlines()
+            testing_lines = t.readlines()
+            input_learning_array = []
+            output_learning_array = []
+            input_testing_array = []
+            output_testing_array = []
+            learning_attributes, learning_classes = check_first_line_format(learning_lines[0])
+            testing_attributes, testing_classes = check_first_line_format(testing_lines[0])
+
+            file_transformation(learning_lines[1:], learning_attributes, learning_classes, input_learning_array,
+                                output_learning_array)
+            file_transformation(testing_lines[1:], testing_attributes, testing_classes, input_testing_array,
+                                output_testing_array)
+        except Exception as e:
+            print(e)
+    f.close()
+    return input_learning_array, output_learning_array, input_testing_array, output_testing_array
 
 
 """def ej1():
@@ -220,11 +314,12 @@ def ej2():
         system_network.initialize(0)
         system_network.propagate()
 
-        print(f"Etapa: {1+i}")
+        print(f"Etapa: {1 + i}")
         print(f"Alarm output: {alarm.output}")
         print(f"Cooling output: {cooling.output}")
 
 
 if __name__ == "__main__":
-    #ej1()
-    ej2()
+    # ej1()
+    # ej2()
+    print(read3("nand.txt", "and.txt"))
