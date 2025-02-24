@@ -36,7 +36,7 @@ class Layer:
     def __init__(self):
         self.neurons = []
 
-    def add_neuron(self, neuron):
+    def add_neuron(self, neuron: Neuron):
         self.neurons.append(neuron)
 
     def add_neurons(self, neurons):
@@ -109,6 +109,33 @@ class Direct(Neuron):
         self.output = self.input
 
 
+class Perceptron(Neuron):
+    def __init__(self, alpha):
+        super().__init__()
+        self.alpha = alpha
+        self.threshold = 0.5
+
+    def fire(self):
+        if self.input > self.threshold:
+            self.output = 1
+        elif -self.threshold <= self.input <= self.threshold:
+            self.output = 0
+        else:
+            self.output = -1
+    
+    def update_weight(self, new_weight):
+        for conn in self.connections:
+            conn.weight = new_weight
+
+
+class Bias(Neuron):
+    def __init__(self):
+        super().__init__()
+
+    def fire(self):
+        self.output = 1
+
+
 # Ej3
 # Definiremos pues las tres funciones a implementar
 def check_first_line_format(line):
@@ -133,11 +160,11 @@ def file_transformation(lines, attributes, classes, input_array, output_array):
                 input_array_line) < classes or len(input_array_line) < (attributes + classes):
             raise Exception(
                 "Error en el formato, no puede haber mas entradas ni salidas que numeros insertados")
-        print("Inicio de removida input_array_line = {}".format(input_array_line))
+        #print("Inicio de removida input_array_line = {}".format(input_array_line))
         for i in range(classes):
             output_array_line.insert(0, input_array_line.pop())
-            print("input_array_line = {}".format(input_array_line))
-            print("Inicio de removida output_array_line = {}".format(output_array_line))
+            #print("input_array_line = {}".format(input_array_line))
+            #print("Inicio de removida output_array_line = {}".format(output_array_line))
         input_array.append(input_array_line)
         output_array.append(output_array_line)
 
@@ -319,7 +346,51 @@ def ej2():
         print(f"Cooling output: {cooling.output}")
 
 
+def ejPerceptron():
+    atributes, classes = read2("and.txt")  
+    num_neuronas_input = len(atributes[0])  
+    num_neuronas_output = len(classes[0])  
+
+    # Crear la red del perceptrón
+    network_perceptron = Network()
+    layer_input = Layer()
+    layer_output = Layer()
+
+    # Añadir neuronas de entrada a la capa de entrada
+    for _ in range(num_neuronas_input):
+        layer_input.add_neuron(Perceptron(0.2, 0))
+    
+    # Añadir neuronas de salida a la capa de salida
+    for _ in range(num_neuronas_output):
+        layer_output.add_neuron(Perceptron(0.2, 0))
+
+    # Añadir capas al perceptrón
+    network_perceptron.add_layers([layer_input, layer_output])
+
+    # Conectar la capa de entrada a la capa de salida con pesos aleatorios
+    min_w = -0.5 
+    max_w = 0.5  
+    layer_input.connect_layer(layer_output, min_w, max_w)
+
+    # Primer initilize
+    layer_input.initialize(0)
+    layer_output.initialize(0)
+
+    # Iniciar el ciclo de entrenamiento
+    changed = True  # Variable que controla el ciclo de entrenamiento
+    while changed:
+        #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
+        for atts, clas in zip(atributes, classes): 
+            for att, i in enumerate(atts):
+                layer_input.neurons[i].initialize(att)
+            network_perceptron.fire()
+            network_perceptron.initialize()
+            network_perceptron.propagate()
+            
+
+    print(f"Entrenamiento completado en {epoch_count} épocas.")
+
 if __name__ == "__main__":
     # ej1()
     # ej2()
-    print(read3("nand.txt", "and.txt"))
+    ejPerceptron()
