@@ -113,7 +113,7 @@ class Perceptron(Neuron):
     def __init__(self, alpha):
         super().__init__()
         self.alpha = alpha
-        self.threshold = 0.5
+        self.threshold = 0.2
 
     def fire(self):
         if self.input > self.threshold:
@@ -122,18 +122,21 @@ class Perceptron(Neuron):
             self.output = 0
         else:
             self.output = -1
-    
+
     def update_weight(self, new_weight):
         for conn in self.connections:
             conn.weight = new_weight
 
+    def initialize(self, input):
+        self.input = input
+
 
 class Bias(Neuron):
-    def __init__(self):
+    def __init__(self, alpha):
         super().__init__()
-
-    def fire(self):
+        self.alpha = alpha
         self.output = 1
+
 
 
 # Ej3
@@ -345,52 +348,70 @@ def ej2():
         print(f"Alarm output: {alarm.output}")
         print(f"Cooling output: {cooling.output}")
 
+#version para una sola neurona, despues generalizamos
+def ejPerceptron(input_file):
+    atributes, classes = read2(input_file)
 
-def ejPerceptron():
-    atributes, classes = read2("and.txt")  
-    num_neuronas_input = len(atributes[0])  
+    num_neuronas_input = len(atributes[0])
     num_neuronas_output = len(classes[0])  
 
     # Crear la red del perceptrón
     network_perceptron = Network()
-    layer_input = Layer()
-    layer_output = Layer()
+    input_layer = Layer()
+    output_layer = Layer()
 
     # Añadir neuronas de entrada a la capa de entrada
     for _ in range(num_neuronas_input):
-        layer_input.add_neuron(Perceptron(0.2, 0))
-    
+        input_layer.add_neuron(Perceptron(1))
+    #anado el bias
+    input_layer.add_neuron(Bias(1))
     # Añadir neuronas de salida a la capa de salida
     for _ in range(num_neuronas_output):
-        layer_output.add_neuron(Perceptron(0.2, 0))
+        output_layer.add_neuron(Perceptron(1))
 
     # Añadir capas al perceptrón
-    network_perceptron.add_layers([layer_input, layer_output])
+    network_perceptron.add_layers([input_layer, output_layer])
 
     # Conectar la capa de entrada a la capa de salida con pesos aleatorios
-    min_w = -0.5 
-    max_w = 0.5  
-    layer_input.connect_layer(layer_output, min_w, max_w)
+    min_w = 0
+    max_w = 0
+    input_layer.connect_layer(output_layer, min_w, max_w)
 
     # Primer initilize
-    layer_input.initialize(0)
-    layer_output.initialize(0)
+    input_layer.initialize(0)
+    output_layer.initialize(0)
 
     # Iniciar el ciclo de entrenamiento
     changed = True  # Variable que controla el ciclo de entrenamiento
+    counter = 0
     while changed:
         #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
-        for atts, clas in zip(atributes, classes): 
-            for att, i in enumerate(atts):
-                layer_input.neurons[i].initialize(att)
+        changed = False
+        print(f"Epoca: {counter}")
+        for atts, cla in zip(atributes, classes):
+            for i, att in enumerate(atts):
+                input_layer.neurons[i].initialize(att)
             network_perceptron.fire()
-            network_perceptron.initialize()
+            network_perceptron.initialize(0)
             network_perceptron.propagate()
-            
+            print(f"y: {output_layer.neurons[0].output}")
+            print(f"t: {cla[0]}")
+            print(f"{output_layer.neurons[0].output - cla[0]}")
+            if output_layer.neurons[0].output - cla[0] != 0:
+                for index,neuron in enumerate(input_layer.neurons):
+                    if index < len(atts):
+                        neuron.connections[0].weight += cla[0] * neuron.alpha * atts[index]
+                        print(f"w{index}: {neuron.connections[0].weight}")
+                    else:
+                        neuron.connections[0].weight += cla[0] * neuron.alpha
+                        print(f"wBias: {neuron.connections[0].weight}")
+                changed = True
 
-    print(f"Entrenamiento completado en {epoch_count} épocas.")
+        counter += 1
+
 
 if __name__ == "__main__":
     # ej1()
     # ej2()
-    ejPerceptron()
+    #print(read2("and.txt"))
+    ejPerceptron("and.txt")
