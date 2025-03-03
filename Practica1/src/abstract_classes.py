@@ -110,10 +110,18 @@ class Direct(Neuron):
 
 
 class Perceptron(Neuron):
-    def __init__(self, alpha):
+    def __init__(self, alpha, threshold):
         super().__init__()
-        self.alpha = alpha
-        self.threshold = 0.2
+        if 0 < alpha and alpha <= 1:
+            self.alpha = alpha
+        else:
+            print("alpha must be greater than 0 and smaller than 1, set to default: 1")
+            self.alpha = 1
+        if threshold > 0:
+            self.threshold = threshold
+        else:
+            print("threshold must be greater than 0, set to default: 0.2")
+            self.threshold = 0.2
 
     def fire(self):
         if self.input > self.threshold:
@@ -123,18 +131,22 @@ class Perceptron(Neuron):
         else:
             self.output = -1
 
-    def update_weight(self, new_weight):
-        for conn in self.connections:
-            conn.weight = new_weight
+class Adaline(Perceptron):
+    def __init__(self, alpha, threshold):
+        super().__init__(alpha, threshold)
 
-    def initialize(self, input):
-        self.input = input
+    def fire(self):
+        if self.input >= 0:
+            self.output = 1
+        else:
+            self.output = -1
 
 
 class Bias(Neuron):
-    def __init__(self, alpha):
+    def __init__(self):
         super().__init__()
-        self.alpha = alpha
+
+    def fire(self):
         self.output = 1
 
 
@@ -156,7 +168,7 @@ def check_first_line_format(line):
 def file_transformation(lines, attributes, classes, input_array, output_array):
     for line in lines:
         input_array_line = [int(float(cell)) if float(cell).is_integer() else float(cell) for cell in
-                            line.strip().split("  ")]
+                            line.strip().split()]
         output_array_line = []
         i = 0
         if len(input_array_line) < attributes or len(
@@ -344,12 +356,13 @@ def ej2():
         system_network.initialize(0)
         system_network.propagate()
 
+
         print(f"Etapa: {1 + i}")
         print(f"Alarm output: {alarm.output}")
         print(f"Cooling output: {cooling.output}")
 
 #version para una sola neurona, despues generalizamos
-def ejPerceptron(input_file):
+def ejPerceptron(input_file,alpha, threshold):
     atributes, classes = read2(input_file)
 
     num_neuronas_input = len(atributes[0])
@@ -362,12 +375,12 @@ def ejPerceptron(input_file):
 
     # Añadir neuronas de entrada a la capa de entrada
     for _ in range(num_neuronas_input):
-        input_layer.add_neuron(Perceptron(1))
+        input_layer.add_neuron(Direct())
     #anado el bias
-    input_layer.add_neuron(Bias(1))
+    input_layer.add_neuron(Bias())
     # Añadir neuronas de salida a la capa de salida
     for _ in range(num_neuronas_output):
-        output_layer.add_neuron(Perceptron(1))
+        output_layer.add_neuron(Perceptron(alpha,threshold))
 
     # Añadir capas al perceptrón
     network_perceptron.add_layers([input_layer, output_layer])
@@ -387,31 +400,97 @@ def ejPerceptron(input_file):
     while changed:
         #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
         changed = False
-        print(f"Epoca: {counter}")
+        print(f"Epoca: {counter + 1}")
         for atts, cla in zip(atributes, classes):
             for i, att in enumerate(atts):
                 input_layer.neurons[i].initialize(att)
             network_perceptron.fire()
             network_perceptron.initialize(0)
             network_perceptron.propagate()
+            output_layer.fire()
             print(f"y: {output_layer.neurons[0].output}")
             print(f"t: {cla[0]}")
             print(f"{output_layer.neurons[0].output - cla[0]}")
-            if output_layer.neurons[0].output - cla[0] != 0:
-                for index,neuron in enumerate(input_layer.neurons):
-                    if index < len(atts):
-                        neuron.connections[0].weight += cla[0] * neuron.alpha * atts[index]
-                        print(f"w{index}: {neuron.connections[0].weight}")
-                    else:
-                        neuron.connections[0].weight += cla[0] * neuron.alpha
-                        print(f"wBias: {neuron.connections[0].weight}")
-                changed = True
-
+            for c,o_neuron in zip(cla,output_layer.neurons):
+                if o_neuron.output - c != 0:
+                    for index,neuron in enumerate(input_layer.neurons):
+                        for j,connection in enumerate(neuron.connections):
+                            if connection.next_neuron == o_neuron:
+                                if index < num_neuronas_input:
+                                    connection.weight += c * o_neuron.alpha * atts[index]
+                                else:
+                                    connection.weight += c * o_neuron.alpha
+                    changed = True
         counter += 1
 
+def ejAdaline(input_file,alpha, threshold, max_epochs):
+    atributes, classes = read2(input_file)
 
+    num_neuronas_input = len(atributes[0])
+    num_neuronas_output = len(classes[0])
+
+    # Crear la red del perceptrón
+    network_perceptron = Network()
+    input_layer = Layer()
+    output_layer = Layer()
+
+    # Añadir neuronas de entrada a la capa de entrada
+    for _ in range(num_neuronas_input):
+        input_layer.add_neuron(Direct())
+    #anado el bias
+    input_layer.add_neuron(Bias())
+    # Añadir neuronas de salida a la capa de salida
+    for _ in range(num_neuronas_output):
+        output_layer.add_neuron(Adaline(alpha,threshold))
+
+    # Añadir capas al perceptrón
+    network_perceptron.add_layers([input_layer, output_layer])
+
+    # Conectar la capa de entrada a la capa de salida con pesos aleatorios
+    min_w = 0
+    max_w = 0
+    input_layer.connect_layer(output_layer, min_w, max_w)
+
+    # Primer initilize
+    input_layer.initialize(0)
+    output_layer.initialize(0)
+
+    # Iniciar el ciclo de entrenamiento
+    changed = True  # Variable que controla el ciclo de entrenamiento
+    counter = 0
+
+    while changed and max_epochs > 0:
+        #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
+        max_epochs -= 1
+        changed = False
+        min_value = 99999999999999
+
+        print(f"Epoca: {counter + 1}")
+        for atts, cla in zip(atributes, classes):
+            for i, att in enumerate(atts):
+                input_layer.neurons[i].initialize(att)
+            network_perceptron.fire()
+            network_perceptron.initialize(0)
+            network_perceptron.propagate()
+            for c,o_neuron in zip(cla,output_layer.neurons):
+                variation = 0
+                for index,neuron in enumerate(input_layer.neurons):
+                    for connection in neuron.connections:
+                        if connection.next_neuron == o_neuron:
+                            if index < num_neuronas_input:
+                                variation = o_neuron.alpha * (c - o_neuron.output) * atts[index]
+                                print(f"variation: {variation}")
+                                connection.weight += variation
+                            else:
+                                variation = (c - o_neuron.output) * o_neuron.alpha
+                                connection.weight += variation
+                                print(f"variation: {variation}")
+                            min_value = min(min_value, variation)
+                            if min_value < threshold:
+                                changed = True
+        counter += 1
 if __name__ == "__main__":
     # ej1()
     # ej2()
     #print(read2("and.txt"))
-    ejPerceptron("and.txt")
+    ejPerceptron("problema_real1.txt",1,0.2)
