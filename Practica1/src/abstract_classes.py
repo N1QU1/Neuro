@@ -400,7 +400,7 @@ def ejPerceptron(input_file,alpha, threshold):
     while changed:
         #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
         changed = False
-        print(f"Epoca: {counter + 1}")
+        #print(f"Epoca: {counter + 1}")
         for atts, cla in zip(atributes, classes):
             for i, att in enumerate(atts):
                 input_layer.neurons[i].initialize(att)
@@ -408,13 +408,13 @@ def ejPerceptron(input_file,alpha, threshold):
             network_perceptron.initialize(0)
             network_perceptron.propagate()
             output_layer.fire()
-            print(f"y: {output_layer.neurons[0].output}")
-            print(f"t: {cla[0]}")
-            print(f"{output_layer.neurons[0].output - cla[0]}")
+            #print(f"y: {output_layer.neurons[0].output}")
+            #print(f"t: {cla[0]}")
+            #print(f"{output_layer.neurons[0].output - cla[0]}")
             for c,o_neuron in zip(cla,output_layer.neurons):
                 if o_neuron.output - c != 0:
                     for index,neuron in enumerate(input_layer.neurons):
-                        for j,connection in enumerate(neuron.connections):
+                        for _,connection in enumerate(neuron.connections):
                             if connection.next_neuron == o_neuron:
                                 if index < num_neuronas_input:
                                     connection.weight += c * o_neuron.alpha * atts[index]
@@ -422,75 +422,163 @@ def ejPerceptron(input_file,alpha, threshold):
                                     connection.weight += c * o_neuron.alpha
                     changed = True
         counter += 1
+    print(f"y: {output_layer.neurons[0].output}")
+    print(f"t: {cla[0]}")
+    print(f"{output_layer.neurons[0].output - cla[0]}")
 
-def ejAdaline(input_file,alpha, threshold, max_epochs):
+def ejAdaline(input_file, alpha, threshold, max_epochs):
     atributes, classes = read2(input_file)
 
     num_neuronas_input = len(atributes[0])
     num_neuronas_output = len(classes[0])
 
-    # Crear la red del perceptrón
-    network_perceptron = Network()
+    # Crear la red del Adaline
+    network_adaline = Network()
     input_layer = Layer()
     output_layer = Layer()
 
     # Añadir neuronas de entrada a la capa de entrada
     for _ in range(num_neuronas_input):
         input_layer.add_neuron(Direct())
-    #anado el bias
+    # Añadir el bias
     input_layer.add_neuron(Bias())
     # Añadir neuronas de salida a la capa de salida
     for _ in range(num_neuronas_output):
-        output_layer.add_neuron(Adaline(alpha,threshold))
+        output_layer.add_neuron(Adaline(alpha, threshold))
 
-    # Añadir capas al perceptrón
-    network_perceptron.add_layers([input_layer, output_layer])
+    # Añadir capas al Adaline
+    network_adaline.add_layers([input_layer, output_layer])
 
-    # Conectar la capa de entrada a la capa de salida con pesos aleatorios
-    min_w = 0
-    max_w = 0
+    # Inicializar los pesos con valores pequeños aleatorios
+    min_w = -0.5
+    max_w = 0.5
     input_layer.connect_layer(output_layer, min_w, max_w)
 
-    # Primer initilize
+    # Inicialización de las capas
     input_layer.initialize(0)
     output_layer.initialize(0)
 
     # Iniciar el ciclo de entrenamiento
-    changed = True  # Variable que controla el ciclo de entrenamiento
     counter = 0
-
-    while changed and max_epochs > 0:
-        #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
-        max_epochs -= 1
-        changed = False
-        min_value = 99999999999999
-
-        print(f"Epoca: {counter + 1}")
+    for epoch in range(max_epochs):
+        total_error = 0  # Para almacenar el error total de cada época
+        print(f"Época: {epoch + 1}")
         for atts, cla in zip(atributes, classes):
+            # Establecer las entradas de cada neurona de la capa de entrada
             for i, att in enumerate(atts):
                 input_layer.neurons[i].initialize(att)
-            network_perceptron.fire()
-            network_perceptron.initialize(0)
-            network_perceptron.propagate()
-            for c,o_neuron in zip(cla,output_layer.neurons):
-                variation = 0
-                for index,neuron in enumerate(input_layer.neurons):
+
+            # Propagación hacia adelante
+            network_adaline.fire()
+            network_adaline.initialize(0)
+            network_adaline.propagate()
+            
+            # Calcular el error y actualizar los pesos
+            for c, o_neuron in zip(cla, output_layer.neurons):
+                error = c - o_neuron.output  # Error de predicción
+                total_error += error ** 2  # Error cuadrático
+                for index, neuron in enumerate(input_layer.neurons):
                     for connection in neuron.connections:
                         if connection.next_neuron == o_neuron:
                             if index < num_neuronas_input:
-                                variation = o_neuron.alpha * (c - o_neuron.output) * atts[index]
-                                print(f"variation: {variation}")
+                                variation = alpha * error * atts[index]
                                 connection.weight += variation
                             else:
-                                variation = (c - o_neuron.output) * o_neuron.alpha
+                                variation = alpha * error
                                 connection.weight += variation
-                                print(f"variation: {variation}")
-                            min_value = min(min_value, variation)
-                            if min_value < threshold:
-                                changed = True
-        counter += 1
+
+        # Mostrar el error total de cada época
+        print(f"Error total: {total_error}")
+
+        # Si el error es menor que el umbral, terminar el ciclo de entrenamiento
+        if total_error < threshold:
+            break
+
+
+# ==============================
+# Ejercicio Adaline
+# ==============================
+def ejAdalineNew(input_file, alpha, threshold, max_epochs):
+    atributes, classes = read2(input_file)
+
+    num_neuronas_input = len(atributes[0])  # Número de entradas
+    num_neuronas_output = len(classes[0])   # Número de salidas
+
+    # Crear la red Adaline
+    network_adaline = Network()
+    input_layer = Layer()
+    output_layer = Layer()
+
+    # Añadir neuronas de entrada a la capa de entrada
+    for _ in range(num_neuronas_input):
+        input_layer.add_neuron(Direct())  # Neurona de tipo Direct para la entrada
+    # Añadir el bias
+    input_layer.add_neuron(Bias())
+    # Añadir neuronas de salida a la capa de salida
+    for _ in range(num_neuronas_output):
+        output_layer.add_neuron(Adaline(alpha, threshold))  # Usamos la clase Adaline para la capa de salida
+
+    # Añadir capas al Adaline
+    network_adaline.add_layers([input_layer, output_layer])
+
+    # Inicializar los pesos con valores aleatorios pequeños
+    min_w = -0.5
+    max_w = 0.5
+    input_layer.connect_layer(output_layer, min_w, max_w)
+
+    # Inicialización
+    input_layer.initialize(0)
+    output_layer.initialize(0)
+
+    # Ciclo de entrenamiento
+    for epoch in range(max_epochs):
+        total_error = 0  # Error acumulado para esta época
+        print(f"Época: {epoch + 1}")
+
+        for atts, cla in zip(atributes, classes):
+            # Establecer las entradas de cada neurona de la capa a los valores de nuestro array
+            for i, att in enumerate(atts):
+                input_layer.neurons[i].initialize(att)
+            network_adaline.fire()
+            network_adaline.propagate()
+            output_layer.fire()
+
+            # Calcular el error y actualizar los pesos
+            for c, o_neuron in zip(cla, output_layer.neurons):
+                # Calcular el error: (target - output)
+                error = c - o_neuron.output
+                total_error += error ** 2  # Error cuadrático medio
+                print(f"y: {o_neuron.output}")
+                print(f"t: {c}")
+                print(f"Error: {error}")
+
+                # Actualización de pesos y sesgo (fórmula de Adaline)
+                for index, neuron in enumerate(input_layer.neurons):
+                    for _, connection in enumerate(neuron.connections):
+                        if connection.next_neuron == o_neuron:
+                            if index < num_neuronas_input:
+                                # Actualización de pesos: w_i(nuevo) = w_i(anterior) + alpha * (t - y) * x_i
+                                connection.weight += alpha * error * atts[index]
+                            else:
+                                # Actualización del sesgo: b(nuevo) = b(anterior) + alpha * (t - y)
+                                connection.weight += alpha * error
+
+        # Mostrar el error total de cada época
+        print(f"Error total: {total_error}")
+
+        # Comprobar si el error está por debajo del umbral
+        if total_error < threshold:
+            print("Convergencia alcanzada.")
+            break
+
+
+
+
 if __name__ == "__main__":
     # ej1()
     # ej2()
     #print(read2("and.txt"))
     ejPerceptron("problema_real1.txt",1,0.2)
+    # Ejecutar el modelo Adaline con los parámetros recomendados
+    #ejAdalineNew("problema_real1.txt", alpha=0.2, threshold=0.01, max_epochs=1000)
+
