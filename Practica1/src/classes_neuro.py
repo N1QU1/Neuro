@@ -1,7 +1,7 @@
 import random
 from abc import ABC, abstractmethod
 from math import floor
-
+import matplotlib.pyplot as plt
 # ==============================
 # Class Connection
 # ==============================
@@ -11,9 +11,6 @@ class Connection:
         self.next_neuron = neuron
 
 
-# ==============================
-# Class Neuron
-# ==============================
 class Neuron(ABC):
     def __init__(self):
         self.connections = []
@@ -29,9 +26,6 @@ class Neuron(ABC):
             connection.next_neuron.input += self.output * connection.weight
 
 
-# ==============================
-# Class Layer
-# ==============================
 class Layer:
     def __init__(self):
         self.neurons = []
@@ -63,9 +57,6 @@ class Layer:
             neuron.propagate()
 
 
-# ==============================
-# Class Net
-# ==============================
 class Network:
     def __init__(self):
         self.layers = []
@@ -131,6 +122,7 @@ class Perceptron(Neuron):
         else:
             self.output = -1
 
+
 class Adaline(Perceptron):
     def __init__(self, alpha, threshold):
         super().__init__(alpha, threshold)
@@ -152,7 +144,6 @@ class Bias(Neuron):
 
 
 # Ej3
-# Definiremos pues las tres funciones a implementar
 def check_first_line_format(line):
     line_array = line.strip().split()
     if len(line_array) != 2:
@@ -163,7 +154,6 @@ def check_first_line_format(line):
         attributes = int(line_array[0])
         classes = int(line_array[1])
     return attributes, classes
-
 
 def file_transformation(lines, attributes, classes, input_array, output_array):
     for line in lines:
@@ -183,8 +173,7 @@ def file_transformation(lines, attributes, classes, input_array, output_array):
         input_array.append(input_array_line)
         output_array.append(output_array_line)
 
-
-def read1(data_file: str, percentage: float):
+def read1(data_file, percentage):
     with open(data_file, 'r') as f:
         try:
             input_array = []
@@ -204,8 +193,7 @@ def read1(data_file: str, percentage: float):
     f.close()
     return input_array, output_array
 
-
-def read2(data_file: str):
+def read2(data_file):
     with open(data_file, 'r') as f:
         try:
             lines = f.readlines()
@@ -217,7 +205,6 @@ def read2(data_file: str):
             print(e)
     f.close()
     return input_array, output_array
-
 
 def read3(learning_file, testing_file):
     with (
@@ -242,7 +229,6 @@ def read3(learning_file, testing_file):
             print(e)
     f.close()
     return input_learning_array, output_learning_array, input_testing_array, output_testing_array
-
 
 """def ej1():
     # ---------------------------
@@ -308,7 +294,6 @@ def read3(learning_file, testing_file):
     for idx, neurona in enumerate(capa_salida.neurons):
         print(f"Neurona {idx}: output = {neurona.output}")"""
 
-
 def ej2():
     # Neurons creating
     sensor = Direct()
@@ -355,96 +340,98 @@ def ej2():
         system_network.fire()
         system_network.initialize(0)
         system_network.propagate()
-
-
         print(f"Etapa: {1 + i}")
         print(f"Alarm output: {alarm.output}")
         print(f"Cooling output: {cooling.output}")
 
-#version para una sola neurona, despues generalizamos
-def ejPerceptron(input_file,alpha, threshold):
-    atributes, classes = read2(input_file)
-
-    num_neuronas_input = len(atributes[0])
-    num_neuronas_output = len(classes[0])  
-
-    # Crear la red del perceptrón
-    network_perceptron = Network()
-    input_layer = Layer()
-    output_layer = Layer()
-
-    # Añadir neuronas de entrada a la capa de entrada
-    for _ in range(num_neuronas_input):
-        input_layer.add_neuron(Direct())
-    #anado el bias
-    input_layer.add_neuron(Bias())
-    # Añadir neuronas de salida a la capa de salida
-    for _ in range(num_neuronas_output):
-        output_layer.add_neuron(Perceptron(alpha,threshold))
-
-    # Añadir capas al perceptrón
-    network_perceptron.add_layers([input_layer, output_layer])
-
-    # Conectar la capa de entrada a la capa de salida con pesos aleatorios
-    min_w = 0
-    max_w = 0
-    input_layer.connect_layer(output_layer, min_w, max_w)
-
-    # Primer initilize
-    input_layer.initialize(0)
-    output_layer.initialize(0)
+def train_perceptron(attributes,classes,alpha, threshold):
+    network, input_layer, output_layer = init_monolayer_nn(len(attributes[0]), len(classes[0]), "perceptron", alpha,
+                                                           threshold)
 
     # Iniciar el ciclo de entrenamiento
     changed = True  # Variable que controla el ciclo de entrenamiento
     counter = 0
+    mse_list = []
     while changed:
         #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
         changed = False
-        print(f"Epoca: {counter + 1}")
-        for atts, cla in zip(atributes, classes):
+        mse = 0
+        for atts, cla in zip(attributes, classes):
             for i, att in enumerate(atts):
                 input_layer.neurons[i].initialize(att)
-            network_perceptron.fire()
-            network_perceptron.initialize(0)
-            network_perceptron.propagate()
+            network.fire()
+            network.initialize(0)
+            network.propagate()
             output_layer.fire()
-            print(f"y: {output_layer.neurons[0].output}")
-            print(f"t: {cla[0]}")
-            print(f"{output_layer.neurons[0].output - cla[0]}")
             for c,o_neuron in zip(cla,output_layer.neurons):
+                mse += 1 / len(classes) * (c - o_neuron.output) ** 2
                 if o_neuron.output - c != 0:
                     for index,neuron in enumerate(input_layer.neurons):
                         for j,connection in enumerate(neuron.connections):
-                            if connection.next_neuron == o_neuron:
-                                if index < num_neuronas_input:
-                                    connection.weight += c * o_neuron.alpha * atts[index]
-                                else:
-                                    connection.weight += c * o_neuron.alpha
+                            if index < len(attributes[0]):
+                                connection.weight += c * o_neuron.alpha * atts[index]
+                            else:
+                                connection.weight += c * o_neuron.alpha
                     changed = True
         counter += 1
+        mse_list.append(mse)
+    return mse_list
 
-def ejAdaline(input_file,alpha, threshold, max_epochs):
-    atributes, classes = read2(input_file)
+def train_adaline(attributes, classes, alpha, threshold, max_epochs):
 
-    num_neuronas_input = len(atributes[0])
-    num_neuronas_output = len(classes[0])
+    network, input_layer, output_layer = init_monolayer_nn(len(attributes[0]), len(classes[0]), "adaline", alpha,
+                                                           threshold)
+    # Iniciar el ciclo de entrenamiento
+    changed = True  # Variable que controla el ciclo de entrenamiento
+    max_value = -99999999
+    mse_list = []
+    while changed and max_epochs > 0:
+        #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
+        max_epochs -= 1
+        mse = 0
+        for atts, cla in zip(attributes, classes):
+            for i, att in enumerate(atts):
+                input_layer.neurons[i].initialize(att)
+            network.fire()
+            network.initialize(0)
+            network.propagate()
+            output_layer.fire()
+            for c,o_neuron in zip(cla,output_layer.neurons):
+                mse += (1 / len(classes)) * (c - o_neuron.output)** 2
+                for index,neuron in enumerate(input_layer.neurons):
+                    for connection in neuron.connections:
+                        if index < len(attributes[0]):
+                            variation = o_neuron.alpha * (c - o_neuron.input) * atts[index]
+                            connection.weight += variation
+                        else:
+                            variation = o_neuron.alpha * (c - o_neuron.input)
+                            connection.weight += variation
+                        max_value = max(max_value, abs(variation))
+        mse_list.append(mse)
+        if max_value < threshold:
+            changed = False
+    return mse_list
 
+def init_monolayer_nn(num_neuronas_input, num_neuronas_output, type, alpha, threshold):
     # Crear la red del perceptrón
-    network_perceptron = Network()
+    network = Network()
     input_layer = Layer()
     output_layer = Layer()
 
     # Añadir neuronas de entrada a la capa de entrada
     for _ in range(num_neuronas_input):
         input_layer.add_neuron(Direct())
-    #anado el bias
+    # anado el bias
     input_layer.add_neuron(Bias())
     # Añadir neuronas de salida a la capa de salida
-    for _ in range(num_neuronas_output):
-        output_layer.add_neuron(Adaline(alpha,threshold))
-
+    if (type == "adaline"):
+        for _ in range(num_neuronas_output):
+            output_layer.add_neuron(Adaline(alpha, threshold))
+    else:
+        for _ in range(num_neuronas_output):
+            output_layer.add_neuron(Perceptron(alpha,threshold))
     # Añadir capas al perceptrón
-    network_perceptron.add_layers([input_layer, output_layer])
+    network.add_layers([input_layer, output_layer])
 
     # Conectar la capa de entrada a la capa de salida con pesos aleatorios
     min_w = 0
@@ -454,43 +441,31 @@ def ejAdaline(input_file,alpha, threshold, max_epochs):
     # Primer initilize
     input_layer.initialize(0)
     output_layer.initialize(0)
+    return network, input_layer, output_layer
 
-    # Iniciar el ciclo de entrenamiento
-    changed = True  # Variable que controla el ciclo de entrenamiento
-    counter = 0
+def plot_list(l,x_label,y_label,title):
+    plt.plot(l)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.grid()
+    plt.show()
 
-    while changed and max_epochs > 0:
-        #tiene que encargarse de establecer el input de cada neurona de la capa a los valores de nuestro array
-        max_epochs -= 1
-        changed = False
-        min_value = 99999999999999
+def ej_perceptron():
+    attributes,classes=read2("nand.txt")
+    mse_list = train_perceptron(attributes,classes,1,0.2)
+    plot_list(mse_list, "Epoch", "MSE", "MSE Development")
 
-        print(f"Epoca: {counter + 1}")
-        for atts, cla in zip(atributes, classes):
-            for i, att in enumerate(atts):
-                input_layer.neurons[i].initialize(att)
-            network_perceptron.fire()
-            network_perceptron.initialize(0)
-            network_perceptron.propagate()
-            for c,o_neuron in zip(cla,output_layer.neurons):
-                variation = 0
-                for index,neuron in enumerate(input_layer.neurons):
-                    for connection in neuron.connections:
-                        if connection.next_neuron == o_neuron:
-                            if index < num_neuronas_input:
-                                variation = o_neuron.alpha * (c - o_neuron.output) * atts[index]
-                                print(f"variation: {variation}")
-                                connection.weight += variation
-                            else:
-                                variation = (c - o_neuron.output) * o_neuron.alpha
-                                connection.weight += variation
-                                print(f"variation: {variation}")
-                            min_value = min(min_value, variation)
-                            if min_value < threshold:
-                                changed = True
-        counter += 1
+def ej_adaline():
+    attributes,classes=read2("and.txt")
+    mse_list = train_adaline(attributes,classes,1,1e-5,30)
+    plot_list(mse_list,"Epoch","MSE","MSE Development")
+
 if __name__ == "__main__":
     # ej1()
-    # ej2()
+    #ej2()
     #print(read2("and.txt"))
-    ejPerceptron("problema_real1.txt",1,0.2)
+    ej_adaline()
+    #ej_adaline()
+
+
